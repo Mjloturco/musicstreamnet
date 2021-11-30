@@ -1,0 +1,138 @@
+\documentclass[11pt]{article}
+\usepackage[paper  = letterpaper,
+                     left   = 1.2in,
+                     right  = 1.2in,
+                     top    = 1.0in,
+                     bottom = 1.0in,
+                     ]{geometry}
+
+% \usepackage[bitstream-charter]{mathdesign}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{graphicx}
+
+
+
+\title{C137 Project: Music Popularity Prediction}
+\author{Matthew Cook, Michael Loturco, and Abigail Stone}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+Music streaming is a growing area with a wealth of data, access to this data gives us the opportunity to try to predict popularity and growth of songs. We assume that popularity changes over time, and thus trying to estimate ‘popularity’ without considering time dimension will produce poorer model performance than predicting popularity while considering time. 
+
+
+Existing work has attempted to classify songs into buckets of popularity, ‘low’, ‘medium’ and ‘high’ or as ‘hit song’ and ‘not hit song’ by looking at extensive sets of features. Features of a track can range from lyrical(e.g. valence, mood) to metadata (e.g. artist name, album) information to actual audio features extracted from the audio file itself (e.g. danciness, energy). HitMusicNet uses a compressed and encoded set of these features as an input to a Convolutional Neural Network and outputs a predicted popularity from among three classes. 
+
+
+We propose augmenting the encoded data from HitMusicNet by joining the encoded data from each track with the time series data of stream counts of those songs over time. Then we propose using a Recurrent Neural Network to take in time-labeled vectors including the encoded data and stream count and output a regression for stream counts for the next timestep. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
+
+
+
+% This section should movitate your project and introduce your project at a high level. As we have mentioned in the class, your project should contains some exploration. The exploration can be one or more of these aspects:  
+% 
+% \begin{itemize}
+% \item applying deep models to a new problem;   
+% \item devising a new machine learning for a new or existing problem;    
+% \item implementing a model that does have official code; and 
+% \item examining a particular learning technique.
+% \end{itemize}
+% 
+% In the motivation part, you want to show  
+% \begin{itemize}
+% \item why the problem you are solving is important; 
+% \item which part of the project is the exploration beyond the literature;
+% \end{itemize}
+% \textbf{Your project should be more than repeating what has been done in the liaterature. }
+% 
+% Then you need to introduce your project. We may want to answer these questions: 
+% \begin{itemize}
+% \item what is the structure of the learning problem (the input, the predicting target, and the data);   
+% \item what models to you plan to use;  
+% \item how to measure the success of your project; and   
+% \item are there any your hypotheses you need, and how hour hypotheses are verified and disputed? 
+% \end{itemize}
+% Please do NOT itemize answers to these questions because you need a coherent introduction of your project, not merely answers to these questions. 
+
+
+\section{Related Work}
+
+Martin-Gutierrez et. al \cite{martin-gutierrez_multimodal_2020} introduce the SpotGenTrack Popularity Dataset (SPD) and a deep learning architecture called HitMusicNet. SPD combines metadata and audio data from Spotify and corresponding lyrical information from Genius and then extracts features from those sources. The extracted features are then compressed and encoded through a network MusicAENet. Finally a CNN MusicPopNet consumes the encoded and compressed feature vector to produce a classification of popularity. Similar previous models are noted to be binary classification, ‘hit’ vs ‘not hit’ whereas HitMusicNet is a ternary classifier separating ‘low’, ‘medium’ and ‘high’ classes. The overall architecture is shown in \ref{architecture}.
+
+\begin{figure}
+    \centering 
+    \includegraphics[width=5in]{figs/architecture.png}
+    \caption{Model architecture presented by Martin-Gutierrez et al \cite{martin-gutierrez_multimodal_2020}. We intend to replace the fully-connected CNN with an RNN.}
+    \label{architecture}
+\end{figure}
+
+Li et al \cite{li_lstm-rpa_2021} present LSTM Rolling Prediction Algorithm (LSTM-RPA), a popularity prediction algorithm based on a Recurrent Neural Network. LSTM-RPA breaks the long-term prediction into several short-term trend predictions. This work is an important example of using an RNN architecture to predict song popularity. 
+    
+Araujo et al \cite{araujo_predicting_2019} present a popularity prediction method using Support Vector Machines; this method predicts whether a song will appear on the Spotify Top 50 Global charts. This work has similar goals to our project and will serve as an important reference for evaluating our model’s accuracy.
+
+In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-processing methods for deep neural networks. Their primary result demonstrates that many common preprocessing techniques are redundant; this conclusion will help us inform our pre-processing decisions for our project.
+
+% 
+% You need to study the current literature of your planned work. You don't have to exhaust the literature, but you need to search related work with a few proper key words.
+% If there are related work, you need to cite them. For example, if you want to cite the ``Deep Learning'' book \cite{goodfellow2016deep}, then you should use the ``\textbackslash cite'' command.
+% This section helps you to establish the current status of known knowledge around the project. Particularly, you may consider to cite the research work solving the same problem.  
+
+% \section{Background}
+% 
+% This section is optional. If your project is related to some standard formulations, and you need to introduce details to make your later models clear, you should consider to put these \textbf{standard} formulations here.  For example, if you are going to do some modification of GRU later, but you need to have an introduction of GRU first, then it belongs to this section. A negaive example is, your project will use a GRU layer in a standard way, then a detailed introduction of GRU is not needed. 
+% 
+% 
+% \noindent \textbf{Proposal submission:} When you submit your proposal, you should include the ``Introduction'' and ``Related Work'' sections. If you have a ``Background'' section, you should include it as well. The rubrics for grading your proposal include: 
+% \begin{itemize}
+% \item 2 points if you have a clear motivation
+% \item 3 points if you have a clear summary of your project 
+% \item 3 points if you have done at least a rough literature study 
+% \item 2 points for the readability of your project (you can use Grammarly to correct your grammar issues.) 
+% \end{itemize}
+% 
+% \section{Method}
+% 
+% This section should be a detailed introduction of your project. This section should only contain your own work. For example, if you have modified a GRU architecture, this section should only have the modification of GRU. The original GRU structure should be put in the ``Background'' section.  
+% 
+% In this section, you should have a rigorous introduction of your problem. This list of questions help you to do the formulation,
+% \begin{itemize}
+% \item What data do you have? How are they denoted ($X$ represents features)? Is every notation well defined (e.g. $X \in \mathcal{R}^d$)? 
+% \item What type learning problem it is? What's the desired output from the model? 
+% \item What's the input to the model? Is it the same as (part of) the data? Any processing before you can feed the data to the model?
+% \item What the model? If the model is not a standard one, do you have a function form of the model?
+% \item What's the loss function of the model? If it is not a standard problem, you need to use an equation to show that exactly. 
+% \item Can you check all symbols to make sure that every one is well defined?
+% \end{itemize}
+% 
+% 
+% \section{Experiments}
+% 
+% In this section, you should report your experiments, which that are either related to your hypotheses or the evaluation measures of your models. Do NOT manipulate experiment results, and its OK that the experiment results do not support your hypotheses or expectations. For example, if your project is a modification of the GRU and argues that the motivation can improve its performance. However, the experiment results do not show so. In this section, you should report your observations in experiments. Then you should analyze the results in either of the following ways:
+% \begin{itemize}
+% \item the original argument is still correct, but experiments are not perfect. There is still a chance that the modification should work.  
+% \item the original argument is invalid by observing experiment results. Some part of the argument is wrong. If there is a fix, you can also talk about further modifications.  
+% \end{itemize}
+% 
+% \section{Conclusion}
+% 
+% Draw conclusions from this project. Summarize the new findings you want your reader to learn.  
+% 
+% \section{Share of work}
+% 
+% If the team has more than person, then you should report who has done which part of work. Particularly, you should mention these work items. If multiple people participated in one item, then you can list the percentage of contribution of each person. 
+% 
+% \begin{itemize}
+% \item writing of the proposal 
+% \item coding
+% \item running experiments and collecting data 
+% \item discussions (of project ideas and experiment results) 
+% \item writing of the final report 
+% \end{itemize}
+
+\bibliographystyle{plain}
+\bibliography{sample}
+
+\end{document}
