@@ -27,7 +27,8 @@ Define input and output data paths
 PHIL_DAILY_PATH = '../data/spotify_daily_charts.csv'
 
 # set destination path 
-DST_PATH = '../data/spotify_daily_augmented.csv'
+TRACK_PATH = '../data/spotify_tracks_augmented.csv'
+AUG_PATH = '../data/spotify_daily_augmented.csv'
 
 
 def getAdditionalFeatures(df):
@@ -38,7 +39,7 @@ def getAdditionalFeatures(df):
     
     # artist ID 
     df['artist_id'] = df.apply(
-                        lambda r:sp.track(r['track_id']) ['artists'][0]['id'], 
+                        lambda r:sp.track(r['track_id']) ['artists'][0]['id'],
                         axis=1)
         
     # list of features to extract from audio_features dictionary
@@ -79,9 +80,20 @@ if __name__ == "__main__":
      
     # Read in the datasets 
     phil_daily = pd.read_csv(PHIL_DAILY_PATH)
-    phil_daily = phil_daily.head(1000) # FIX: API times out
     
-    augmented = getAdditionalFeatures(phil_daily)
+    # get unique track ids and drop redundant columns
+    tracks = phil_daily.groupby(by='track_id', as_index=False).max()
+    tracks = tracks.drop(['date', 'position', 'track_name', 
+                            'artist', 'streams'], axis=1)
+    with_features = getAdditionalFeatures(tracks)
+        
+    # save this intermediate dataset
+    with_features.to_csv(TRACK_PATH, sep=',')
+    
+    # join audio features data with original daily tracks data 
+    augmented = with_features.set_index('track_id') \
+                             .join(phil_daily.set_index('track_id'))
+    
 
     # write joined dataframe as .csv
-    augmented.to_csv(DST_PATH, sep=',')
+    augmented.to_csv(AUG_PATH, sep=',')
