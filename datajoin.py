@@ -24,11 +24,12 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 Define input and output data paths  
 """
 # SPOTGEN_PATH = '../data/spotify_tracks.csv'
-PHIL_DAILY_PATH = '../data/spotify_daily_charts.csv'
+PHIL_DAILY_PATH = 'data/spotify_daily_charts.csv'
 
 # set destination path 
 TRACK_PATH = '../data/spotify_tracks_augmented.csv'
 AUG_PATH = '../data/spotify_daily_augmented.csv'
+SONG_MAJOR_PATH = 'data/spotify_daily_song_major.csv'
 
 
 def getAdditionalFeatures(df):
@@ -59,6 +60,22 @@ def getAdditionalFeatures(df):
     
     return df 
 
+def produceSongMajor():
+    phil_daily = pd.read_csv(PHIL_DAILY_PATH, parse_dates=["date"])
+
+    date_order = phil_daily.pivot(index=['track_id', 'track_name'], columns="date", values="streams")
+
+    date_order = date_order.fillna(0)
+
+    date_order["stream_totals"] = date_order.iloc[:, :].sum(axis=1)
+    date_order.sort_values(by="stream_totals", ascending=False, inplace=True)
+
+    # print(date_order.head(50))
+    # print(date_order.iloc[[2600]].to_string())
+    date_order.to_csv(SONG_MAJOR_PATH, sep=',')
+
+   
+
 
 def joinSpotifyDatasets(data1, data2):
     """
@@ -74,10 +91,10 @@ def joinSpotifyDatasets(data1, data2):
     joined = joined.drop(columns=to_drop)
     
     return joined 
-    
 
 if __name__ == "__main__":
      
+    # produceSongMajor()
     # Read in the datasets 
     phil_daily = pd.read_csv(PHIL_DAILY_PATH)
     
