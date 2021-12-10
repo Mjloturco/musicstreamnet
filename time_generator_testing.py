@@ -4,9 +4,15 @@ import pandas as pd
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, LSTM, Dense, concatenate
-from tensorflow.keras.preprocessing import timeseries_dataset_from_array
+# from tensorflow.keras.preprocessing import timeseries_dataset_from_array
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 import tensorflow as tf 
 # import keras 
+
+
+
+# config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+# sess = tf.compat.v1.Session(config=config)
 
 # SPOTGEN_PATH = '../data/spotify_tracks.csv'
 PHIL_DAILY_PATH = 'data/spotify_daily_charts.csv'
@@ -36,20 +42,24 @@ if __name__ == "__main__":
     time_series_train = song_major.iloc[:split_point,:].to_numpy()
     time_series_test = song_major.iloc[split_point:,:].to_numpy()
     
-    # swap axes 
-    time_series_train = np.swapaxes(time_series_train, 0, 1)
-    time_series_test = np.swapaxes(time_series_test, 0, 1)
     
-    print(time_series_train.shape)
-    print(time_series_test.shape)
+    train_generator = TimeseriesGenerator(time_series_train, time_series_train,
+                                            length=LOOK_BACK, batch_size=20) 
+    test_generator = TimeseriesGenerator(time_series_test, time_series_test, 
+                                        length=LOOK_BACK, batch_size=20)
+    
+    # # swap axes 
+    # time_series_train = np.swapaxes(time_series_train, 0, 1)
+    # time_series_test = np.swapaxes(time_series_test, 0, 1)
+    # 
+    # time_series_train = timeseries_dataset_from_array(time_series_train,  
+    #                         None, sequence_length=LOOK_BACK,
+    #                         batch_size=1600).as_numpy_iterator()
+    # time_series_test = timeseries_dataset_from_array(time_series_test, 
+    #                         None, sequence_length=LOOK_BACK,
+    #                         batch_size=1600).as_numpy_iterator()
     
     
-    time_series_train = timeseries_dataset_from_array(time_series_train,  
-                            None, sequence_length=LOOK_BACK,
-                            batch_size=1600).as_numpy_iterator()
-    time_series_test = timeseries_dataset_from_array(time_series_test, 
-                            None, sequence_length=LOOK_BACK,
-                            batch_size=1600).as_numpy_iterator()
     
     # print(time_series_train.element_spec)
     # for batch in time_series_train:
@@ -57,31 +67,12 @@ if __name__ == "__main__":
     # time_series_train = np.swapaxes(time_series_train, 1, 2)
     # time_series_test = np.swapaxes(time_series_test[0], 1, 2)
     
-
-    """
-    Metadata pre-processing
-    """
-    with_meta = pd.read_csv(TRACK_PATH)
-    with_meta.sort_values(by="track_id", ascending=False, inplace=True)
-    with_meta.drop(columns=["track_id", "artist_id", "uri", "type", "track_href", "analysis_url", "time_signature", "id"], inplace=True)
-    meta_train = with_meta.iloc[:split_point, :].to_numpy()
-    meta_test = with_meta.iloc[split_point:, :].to_numpy()
-    
-    print(meta_train.shape)
-                                    
-    # keep this! and maybe change it 
-    meta_train = tf.data.Dataset.from_tensors(meta_train)
-    
-    
-    # print(meta_train.iloc[0,:].to_string())
-    # print(time_series_train.iloc[0,:].to_string())
-    # Create META input
     
     """
     Construct & train model 
     """
-    meta_input = Input(shape=(12,), name='Metadata Input Layer')
-    time_series_input = Input(shape=(1598, 2796), name="Time Input Layer")
+    # time_series_input = Input(shape=(1598, 1), name="Time Input Layer")
+    time_series_input = Input(shape=(1598, 1))
     
     lstm_out = LSTM(TIME_SERIES_OUTPUT_SIZE)(time_series_input)
     
@@ -96,14 +87,12 @@ if __name__ == "__main__":
     output = Dense(1, activation='linear')(d2)
     
     # create model 
-    # model = Model(inputs=[meta_input, time_series_input], outputs=output)
     model = Model(inputs=time_series_input, outputs=output)
     print(model.summary())
     
     # compile 
     model.compile(loss='mse', optimizer='adam')
-    # model.fit(x=[meta_train, time_series_train], epochs=15, batch_size=None)
-    model.fit(x=time_series_train, epochs=15, batch_size=None)
+    model.fit(x=train_generator, y=None, epochs=15, batch_size=None)
     
     
     
