@@ -1,8 +1,11 @@
 import os 
 import numpy as np 
 import pandas as pd 
-from tensorflow.keras.layers import Input, LSTM, concatenate
-from tensorflow.
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, LSTM, Dense, concatenate
+from tensorflow.keras.preprocessing import timeseries_dataset_from_array
+import tensorflow as tf 
 # import keras 
 
 # SPOTGEN_PATH = '../data/spotify_tracks.csv'
@@ -15,6 +18,9 @@ SONG_MAJOR_PATH = 'data/spotify_daily_song_major.csv'
 
 
 TIME_SERIES_OUTPUT_SIZE = 16
+LOOK_BACK = 4
+NSONGS = 3495
+
 if __name__ == "__main__":   
 
 
@@ -23,28 +29,68 @@ if __name__ == "__main__":
     song_major.sort_values(by="track_id", ascending=False, inplace=True)
     song_major.drop(columns=["track_id", "stream_totals", "track_name"], inplace=True)
     split_point = int(3495*.8)
-    time_series_train = song_major.iloc[:split_point,:]
-    time_series_test = song_major.iloc[split_point+1:,:]
+    time_series_train = song_major.iloc[:split_point,:].to_numpy()
+    time_series_test = song_major.iloc[split_point+1:,:].to_numpy()
+    
+    # swap axes 
+    time_series_train = np.swapaxes(time_series_train, 0, 1)
+    time_series_test = np.swapaxes(time_series_test, 0, 1)
 
 
     with_meta = pd.read_csv(TRACK_PATH)
     with_meta.sort_values(by="track_id", ascending=False, inplace=True)
     with_meta.drop(columns=["track_id", "artist_id", "uri", "type", "track_href", "analysis_url", "time_signature", "id"], inplace=True)
-    meta_train = with_meta.iloc[:split_point, :]
-    meta_test = with_meta.iloc[split_point:, :]
-
+    meta_train = with_meta.iloc[:split_point, :].to_numpy()
+    meta_test = with_meta.iloc[split_point:, :].to_numpy()
+    
+    
+    
+    time_series_train = timeseries_dataset_from_array(time_series_train,  
+                            None, sequence_length=LOOK_BACK,
+                            batch_size=1600).as_numpy_iterator()
+    time_series_test = timeseries_dataset_from_array(time_series_test, 
+                            None, sequence_length=LOOK_BACK,
+                            batch_size=1600).as_numpy_iterator()
+    
+    # print(time_series_train.element_spec)
+    # for batch in time_series_train:
+    #     print('BATCH: ', batch)
+    # time_series_train = np.swapaxes(time_series_train, 1, 2)
+    # time_series_test = np.swapaxes(time_series_test[0], 1, 2)
+                                    
+    # keep this! and maybe change it 
+    meta_train = tf.data.Dataset.from_tensors(meta_train)
+    
+    
     # print(meta_train.iloc[0,:].to_string())
     # print(time_series_train.iloc[0,:].to_string())
     # Create META input
     meta_input = Input(shape=(12,), name='Metadata Input Layer')
 
-
-    time_series_input = Input(shape=(1600,), name="Time Input Layer")
+    time_series_input = Input(shape=(88, 1), name="Time Input Layer")
+    
     lstm_out = LSTM(TIME_SERIES_OUTPUT_SIZE)(time_series_input)
-    full_features = concatenate([lstm_out, meta_input])
+    
+    # concatenate
+    # full_features = concatenate([lstm_out, meta_input])
 
-    d1 = Dense(12, activation='relu')(full_features)
-    d2 = Dense(8, )
+    # d1 = Dense(12, activation='relu')(full_features)
+    d1 = Dense(12, activation='relu')(lstm_out)
+    d2 = Dense(8, activation='relu')(d1)
 
-    #output
-    output = Dense(1, )
+    #outputshape
+    output = Dense(1, activation='linear')(d2)
+    
+    # create model 
+    # model = Model(inputs=[meta_input, time_series_input], outputs=output
+    model = Model(inputs=time_series_input, outputs=output)
+    print(model.summary())
+    
+    # compile 
+    model.compile(loss='mse', optimizer='adam')
+    # model.fit(x=[meta_train, time_series_train], epochs=15, batch_size=None)
+    # model.fit(x=time_series_train, epochs=15, batch_size=None)
+    
+    
+    
+    
