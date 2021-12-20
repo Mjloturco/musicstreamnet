@@ -129,7 +129,7 @@ Due to being a regression problem we settled on using Mean Squared Error and Roo
 % 
 % 
 \section{Experiments}
-
+Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefor they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the meta data for each song, than the model is going to naturally give more weight to the 13 meta data variables. 
 % TODO: sample graphs 
 % TODO: output metrics 
 % TODO: comparison between sequential, functional, meta, no meta
@@ -143,10 +143,10 @@ Due to being a regression problem we settled on using Mean Squared Error and Roo
 % \end{itemize}
 % 
 \section{Conclusion}
-\textbf{Something about sucessful vs unsuccessful models}
+\textbf{Something about successful vs unsuccessful models}
 
 
-While we were unsuccessful in our attempts to use the Meta data of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. As well a larger and less sparse data set could be used a most likely would improve performance.
+While we were unsuccessful in our attempts to use the Meta data of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. One potential modification to the multi-input model is to train the recurrent layers as a separate model for a preliminary input. Then proceed to train a model which uses that output alongside the meta data to refine the predicted value. This avoids the issue of not knowing how the recurrent layer is training in the larger model, but still may present the problem that more weight is being given to the meta data than the predicted value. As well a larger and less sparse data set could be used a most likely would improve performance.
 While adding more data would improve the performance it could also lead to complications due to differing music tastes across different regions. By focusing on the Philippines data set  
 
 % TODO: which models were successful and how successful 
