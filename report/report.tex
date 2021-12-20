@@ -22,8 +22,6 @@
 
 \section{Introduction}
 
-Hello World
-
 Music streaming is a growing area with a wealth of data, access to this data gives us the opportunity to try to predict popularity and growth of songs. We assume that popularity changes over time, and thus trying to estimate ‘popularity’ without considering time dimension will produce poorer model performance than predicting popularity while considering time. 
 
 
@@ -31,6 +29,8 @@ Existing work has attempted to classify songs into buckets of popularity, ‘low
 
 
 We propose augmenting the encoded data from HitMusicNet by joining the encoded data from each track with the time series data of stream counts of those songs over time. Then we propose using a Recurrent Neural Network to take in time-labeled vectors including the encoded data and stream count and output a regression for stream counts for the next timestep. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
+
+The thought behind such a process is that while a normal Recurrent network will predict the stream count with relatively good accuracy, by combining that data with the encoded meta data then a feed forward network would use this information to refine the results of the previous network.
 
 
 
@@ -98,12 +98,19 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 \section{Methods}
 
 \subsection{Dataset}
+The data set we used for this experiments was a modified version of the daily top 200 songs by stream count in the Philippines  from January 1st 2017, to May 20th 2021. The problem arose with this Data set when songs would drop off the chart, and potentially come back a few days laters creating "gaps" in our data. In order to somewhat solve this problem we filled in large gaps, greater than one or two days with 0 stream counts. Where as smaller gaps were interpolated so that our Data less sparse. The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song] = [1598,3495]. In order to avoid how sparse out data is and to form a training and testing set we scanned out data sets for songs which had at least 800 entries over the course of the time. As well to split out data into X values and Y, we took sub sequences of size 12 with the next time step is the corresponding Y. After trimming our data set in such a manner the shape is 
+\[X = [\text{}] = []\]
+\[Y = [\text{}] = []\]
+We further experimented training the model where the sequence length of X, referred to as "lookback", was varied in an attempt to achieve better results. Aswell due to the sparsity of our data we experimented with different thresholds on wether or not to inculde a song resulting in a variety of different song sizes. 
+As well one of our architectures has multiple inputs. The second data was formed by obtaining a variety of meta data for each song in the original data set from the spotify API. This meta data includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the 63 songs 13 Meta data features were extracted producing a tensor of shape [63,13]
 
 \subsection{Model Architecture}
-
+The learning problem is a rather basic regression problem. Given the daily stream counts of songs of the course of 12 days, can we accurately predict the stream count of the 13th day? Given the time oriented nature of the problem the main aspect of our models consisted of recurrent Layers. We explored both basic models, which consisted of entirely recurrent layers, and multiple input models which included the previously mentioned meta data. We combined these models such that the output of the recurrent layers were being concatenated to the Meta data and then feed through a basic feed forward network. This architecture turned out to be fruitless, which will be touched on more later, and as such we experienced more success with the basic recurrent models. All of the noted Recurrent netowrks used the LSTM structure.
 % TODO: Better-drawn version of architecture! 
 
 \subsection{Model Evaluation}
+Due to being a regression problem we settled on using Mean Squared Error and Root Squared Error as our evaluation metric. It should be noted that since stream counts are numbers within thousands the MSE might be large but being 1,000 counts off when the true value is in the realm of 300,000 does not matter
+
 
 % TODO: output metrics and PLAN for model eval 
 
@@ -136,6 +143,11 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 % \end{itemize}
 % 
 \section{Conclusion}
+\textbf{Something about sucessful vs unsuccessful models}
+
+
+While we were unsuccessful in our attempts to use the Meta data of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. As well a larger and less sparse data set could be used a most likely would improve performance.
+While adding more data would improve the performance it could also lead to complications due to differing music tastes across different regions. By focusing on the Philippines data set  
 
 % TODO: which models were successful and how successful 
 % TODO: reiterate the WHY 
