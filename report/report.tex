@@ -11,6 +11,8 @@
 \usepackage{amssymb}
 \usepackage{float}
 \usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
 
 
 
@@ -101,6 +103,8 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 \subsection{Dataset}
 Our primary dataset is a modified version of the daily top 200 songs by stream count in the Philippines, from January 1st 2017 to May 20th 2021 \cite{peralta_spotify_nodate}. We reshaped this dataset to be of the form $\mathbb{R}^{d \times s}$, where $d$ is the number of dates in the dataset and $s$ is the number of songs.
 
+For our multi-input model, we augmented this dataset with additional features using the Spotify API. For each track in the existing dataset, we added album and artist information, as well as audio features from the Spotify API such as dancability, acousticness, energy, loudness, etc. We included thirteen additional features in total.
+
 One issue with this dataset is that it only represents the top 200 songs for a given day; as a result, songs occasionally drop off the charts for a few days and then return, leaving gaps in our time series. To solve this, we interpolated values for gaps of size exactly one (representing one day of off-chart stream counts) and filtered out songs containing zero values greater than a strict threshold. Due to the sparsity of our data, we experimented with different thresholds for including a song resulting, in a variety of different values for $s$.
 
 % The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time.
@@ -128,8 +132,8 @@ We propose an architecture for a multi-input model that combines stream-count da
 
 \begin{figure}
     \centering{}
-    % \includegraphics{}
-    \caption{TODO: better-drawn version of architecture}
+    \includegraphics[width=4in]{figs/model_arch_sketch.jpg}
+    \caption{Multiple-Input model diagram}
 \end{figure}
 
 \subsection{Model Evaluation}
@@ -157,32 +161,70 @@ Additionally, we visualize the predictions of our model by plotting the predicti
 \subsection{GRU and LSTM}
 % TODO: add experimentation with basic LSTM and GRU 
 
+We performed a parameter search over two key dimensions. One parameter we varied was look back, the length of the time sequence provided which. Figure \ref{lookbackfig} (a) shows how MSE varies as look back changes in a GRU model. Figure \ref{lookbackfig} (b) shows the same variables searched over an LSTM model.
+
+We note that there is not a clear performance trend based on lookback, but rather it appears to be periodic. We theorize this could potentially be due to stream count behavior appearing to be periodic as well, following somewhat consistent bumps of length 7 as the counts follow a pattern from week to week. Additionally, in the GRU model, as the song count increases, the performance becomes more stable and RMSE varies less over lookback. 
+
+We also note that for the LSTM model, that predictions of models trained on sequences on only a single song appear to outperform models trained on sequences from multiple songs. This was counter to an initial hypothesis of ours, where we expected a model to perform better by being able to learn from multiple songs. This potentially indicates that songs do not share enough sequence similarity to be beneficial to our model, and instead the variety of sequences introduced noise that caused the model to perform worse. 
 
 
-\begin{tabular}{| c  c  c |}
-    \hline
-     & LSTM  & GRU \\ 
-     \hline 
-     RMSE & & \\ 
-     MAE & & \\  
-     \hline
-\end{tabular}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=3in]{figs/gru_lookback}
+    \includegraphics[width=3in]{figs/lstm_lookback}
+    \caption{Lookback experiment results for (a) GRU (left) and (b) LSTM (right)}
+    \label{lookbackfig}
+\end{figure}
+
+
+\begin{figure}[h]
+    \centering
+    \begin{tabular}{| c  c  c |}
+        \hline
+         & LSTM  & GRU \\ 
+         \hline 
+         RMSE & & \\ 
+         MAE & & \\  
+         \hline
+    \end{tabular}
+    \caption{Results}
+    \label{singleinputresults}
+\end{figure}
+
+\begin{figure}[h]
+    \centering 
+    \includegraphics[width=3in]{figs/lstm_loss.png}
+    \includegraphics[width=3in]{figs/gru_loss.png}
+    \caption{Training and Testing loss (MSE) for LSTM (left) and GRU (right)}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=3in ]{figs/lstm_predicted}
+    \includegraphics[width=3in]{figs/gru_predicted}
+    \caption{Predicted stream counts and target data for LSTM (left) and GRU (right)}
+\end{figure}
 
 \subsection{Multiple-Input Models}
 % TODO: results for joint model 
 
+% TODO: put in shapes here 
+Our multiple-input model is a Keras functional model that takes the stream count data (SHAPE) as input to an LSTM, concatenates the result of the recurrent network to a vector of 13 metadata features, and feeds this result of shape (SHAPE) through a feed-forward network. 
 
-Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. % TODO: revisit this as a group 
+The results of this model demonstrate that the addition of metadata features did not improve the stream-count prediction. 
 
- There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefore they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the metadata for each song, than the model is going to naturally give more weight to the 13 metadata variables. 
-% 
-% TODO: loss 
+
 \begin{figure}[h]
     \centering 
-    \includegraphics[width=3in]{figs/loss.png}
-    \caption{Training and Testing loss (MSE)}
+    \includegraphics[width=3in]{figs/loss}
+    \caption{Training and Testing loss for mutliple-input model }
 \end{figure}
 
+
+% Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. % TODO: revisit this as a group 
+% 
+%  There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefore they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the metadata for each song, than the model is going to naturally give more weight to the 13 metadata variables. 
+% 
 % TODO: sample graphs 
 % TODO: output metrics 
 % TODO: comparison between sequential, functional, meta, no meta
@@ -190,11 +232,6 @@ Our first major attempt to improve performance was to train the multiple input m
 
 
 % TODO: plots here 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=3in ]{figs/stream_count_PLACEHOLDER}
-    \caption{Predicted stream counts and validation data }
-\end{figure}
 
 % 
 % In this section, you should report your experiments, which that are either related to your hypotheses or the evaluation measures of your models. Do NOT manipulate experiment results, and its OK that the experiment results do not support your hypotheses or expectations. For example, if your project is a modification of the GRU and argues that the motivation can improve its performance. However, the experiment results do not show so. In this section, you should report your observations in experiments. Then you should analyze the results in either of the following ways:
