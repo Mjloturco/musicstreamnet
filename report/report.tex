@@ -8,12 +8,13 @@
 
 % \usepackage[bitstream-charter]{mathdesign}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{float}
 \usepackage{graphicx}
 
 
 
-\title{C137 Project: Music Popularity Prediction}
+\title{CS137 Project: Music Popularity Prediction}
 \author{Matthew Cook, Michael Loturco, and Abigail Stone}
 \date{}
 
@@ -22,16 +23,17 @@
 
 \section{Introduction}
 
-Music streaming is a growing area with a wealth of data, access to this data gives us the opportunity to try to predict popularity and growth of songs. We assume that popularity changes over time, and thus trying to estimate ‘popularity’ without considering time dimension will produce poorer model performance than predicting popularity while considering time. 
+Online music streaming services produce a weath of data about song popularity and trends in music over time. Access to this data gives us the opportunity to try to predict popularity and growth of songs. 
 
+Existing work \cite{araujo_predicting_2019, martin-gutierrez_multimodal_2020} has used metadata and audio features to assign a generalized performance prediction, such as ``low", ``medium" and ``high" popularity or ``hit song" and ``not hit song". The Spotify API \cite{noauthor_spotify_nodate} provides audio features (e.g. danciness and energy), lyrical features (e.g. valence and mood), and metadata for the track, including artist and album information.
 
-Existing work has attempted to classify songs into buckets of popularity, ‘low’, ‘medium’ and ‘high’ or as ‘hit song’ and ‘not hit song’ by looking at extensive sets of features. Features of a track can range from lyrical(e.g. valence, mood) to metadata (e.g. artist name, album) information to actual audio features extracted from the audio file itself (e.g. danciness, energy). HitMusicNet uses a compressed and encoded set of these features as an input to a Convolutional Neural Network and outputs a predicted popularity from among three classes. 
+ % HitMusicNet uses a compressed and encoded set of these features as an input to a Convolutional Neural Network and outputs a predicted popularity from among three classes. 
 
+Since the popularity of a track changes over time, we hypothesize that estimating ``popularity" without considering the time dimension will produce poorer model performance than predicting popularity while considering time. 
 
-We propose augmenting the encoded data from HitMusicNet by joining the encoded data from each track with the time series data of stream counts of those songs over time. Then we propose using a Recurrent Neural Network to take in time-labeled vectors including the encoded data and stream count and output a regression for stream counts for the next timestep. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
+We propose an architecture that considers both the encoded metadata from each track and the time series data of stream counts of those songs over time. Then we propose using a Recurrent Neural Network to take in time-labeled vectors including the encoded data and stream count and output a regression for stream counts for the next timestep. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
 
-The thought behind such a process is that while a normal Recurrent network will predict the stream count with relatively good accuracy, by combining that data with the encoded meta data then a feed forward network would use this information to refine the results of the previous network.
-
+The thought behind such a process is that while a normal Recurrent network will predict the stream count with relatively good accuracy, combining that data with the encoded metadata will enable a feed forward network to use this information to refine the results of the previous network.
 
 
 % This section should movitate your project and introduce your project at a high level. As we have mentioned in the class, your project should contains some exploration. The exploration can be one or more of these aspects:  
@@ -42,7 +44,7 @@ The thought behind such a process is that while a normal Recurrent network will 
 % \item implementing a model that does have official code; and 
 % \item examining a particular learning technique.
 % \end{itemize}
-% 
+%
 % In the motivation part, you want to show  
 % \begin{itemize}
 % \item why the problem you are solving is important; 
@@ -62,8 +64,8 @@ The thought behind such a process is that while a normal Recurrent network will 
 
 \section{Related Work}
 
-Martin-Gutierrez et. al \cite{martin-gutierrez_multimodal_2020} introduce the SpotGenTrack Popularity Dataset (SPD) and a deep learning architecture called HitMusicNet. SPD combines metadata and audio data from Spotify and corresponding lyrical information from Genius and then extracts features from those sources. The extracted features are then compressed and encoded through a network MusicAENet. Finally a CNN MusicPopNet consumes the encoded and compressed feature vector to produce a classification of popularity. Similar previous models are noted to be binary classification, ‘hit’ vs ‘not hit’ whereas HitMusicNet is a ternary classifier separating ‘low’, ‘medium’ and ‘high’ classes. The overall architecture is shown in \ref{architecture}.
-
+Martin-Gutierrez et. al \cite{martin-gutierrez_multimodal_2020} introduce the SpotGenTrack Popularity Dataset (SPD) and a deep learning architecture called HitMusicNet. SpotGenTrack combines metadata and audio data from Spotify and corresponding lyrical information from Genius and then extracts features from those sources. The extracted features are then compressed and encoded through a network MusicAENet. Finally a CNN (MusicPopNet) consumes the encoded and compressed feature vector to produce a classification of popularity. Similar previous models are noted to be binary classification, ``hit" vs ``not hit" whereas HitMusicNet is a ternary classifier separating ``low", ``medium" and ``high" classes. The overall architecture is shown in \ref{architecture}.
+    
 \begin{figure}
     \centering 
     \includegraphics[width=5in]{figs/architecture.png}
@@ -98,19 +100,47 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 \section{Methods}
 
 \subsection{Dataset}
-The data set we used for this experiments was a modified version of the daily top 200 songs by stream count in the Philippines  from January 1st 2017, to May 20th 2021. The problem arose with this Data set when songs would drop off the chart, and potentially come back a few days laters creating "gaps" in our data. In order to somewhat alleviate this problem we filled in large gaps, greater than one or two days with 0 stream counts. Where as smaller gaps were interpolated so that our data is less sparse. The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time. As well to split out data into X values and Y, we took sub-sequences of various sizes, which we referred to as "lookback" with the next time step being the corresponding Y. After trimming our data set in such a manner the shape is 
+Our primary dataset is a modified version of the daily top 200 songs by stream count in the Philippines, from January 1st 2017 to May 20th 2021 \cite{peralta_spotify_nodate}. We reshaped this dataset to be of the form $\mathbb{R}^{d \times s}$, where $d$ is the number of dates in the dataset and $s$ is the number of songs.
+
+One issue with this dataset is that it only represents the top 200 songs for a given day; as a result, songs occasionally drop off the charts for a few days and then return, leaving gaps in our time series. To solve this, we interpolated values for very small gaps (one or two missing values) and filtered out songs with longer sequences of zeros. 
+
+The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time.
+
+ As well to split out data into X values and Y, we took sub-sequences of various sizes, which we referred to as "lookback" with the next time step being the corresponding Y. After trimming our data set in such a manner the shape is 
 \[X = [\text{Batch Size, Lookback, Stream Count By Song}]\]
 \[Y = [\text{Batch Size, 1, Stream Count By Song}]\]
-Due to the sparsity of our data we experimented with different thresholds on whether or not to include a song resulting in a variety of different song sizes. 
-As well in order to test our hypothesis one of our architectures has multiple inputs. The second data was formed by obtaining a variety of meta data for each song in the original data set from the spotify API. This meta data includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the songs 13 Meta data features were extracted producing a tensor of shape [Song Count,13]
+Due to the sparsity of our data we experimented with different thresholds on whether or not to include a song resulting in a variety of different song sizes. % can we revisit this part as a group??? 
+
+In order to test our hypothesis, one of our architectures has multiple inputs. The second data was formed by obtaining a variety of metadata for each song in the original data set from the Spotify API. This metadata includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the songs 13 metadata features were extracted producing a tensor of shape [Song Count,13] % TODO: variables here 
 
 \subsection{Model Architecture}
-The learning problem is a rather basic regression problem. Given the daily stream counts of songs of the course of a certain amount of days, can we accurately predict the stream count of the next day? Given the time oriented nature of the problem the main aspect of our models consisted of recurrent layers.Mostly we experimented with the use of LSTMs as our main layer, but GRUs were also used to a degree of success. We explored both basic models, which consisted of entirely just recurrent layers, and multiple input models which included the previously mentioned meta data. We combined these models such that the output of the recurrent layers were being concatenated to the Meta data and then feed through a basic feed forward network. This architecture turned out to be fruitless, which will be touched on more later, and as such we experienced more success with the basic recurrent models.
+
+%% TODO: I think a lot of this has changed recently, definitely need to revisit as a group
+The learning problem is a straightforward regression problem. Given the daily stream counts of songs of the course of a certain amount of days, can we accurately predict the stream count of the next day? Given the time-oriented nature of the problem ,the main aspect of our models consist of recurrent layers. Mostly we experimented with the use of LSTMs as our main layer, but GRUs were also used to a degree of success. We explored both basic models, which consisted of entirely just recurrent layers, and multiple input models which included the metadata. We combined these models such that the output of the recurrent layers were being concatenated to the metadata and then feed through a basic feed forward network. 
+
+% TODO: I think we can put a much more positive spin on this!!!!!!
+This architecture turned out to be fruitless, which will be touched on more later, and as such we experienced more success with the basic recurrent models.
 % TODO: Better-drawn version of architecture! 
 
-\subsection{Model Evaluation}
-Due to being a regression problem we settled on using Mean Squared Error and Root Squared Error as our evaluation metric. As well while not being used as a main metric, in order to visualize the success of our model we plotted the predictions alongside the original amount of stream counts as shown below. \textbf{Graphs here?}
 
+% TODO: loss 
+\begin{figure}
+    \centering 
+    \includegraphics[width=3in]{figs/loss.png}
+    \caption{Training and Testing loss (MSE)}
+\end{figure}
+
+\subsection{Model Evaluation}
+We used Mean Squared Error, Root Squared Error, and Mean Absolute Error as our evaluation metrics. 
+
+In order to visualize the success of our model, we plotted the predictions alongside the original amount of stream counts as shown below.
+
+% TODO: plots here 
+\begin{figure}
+    \centering
+    \includegraphics[width=3in ]{figs/stream_count_PLACEHOLDER}
+    \caption{Predicted stream counts and validation data }
+\end{figure}
 
 % TODO: output metrics and PLAN for model eval 
 
@@ -129,7 +159,11 @@ Due to being a regression problem we settled on using Mean Squared Error and Roo
 % 
 % 
 \section{Experiments}
-Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefor they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the meta data for each song, than the model is going to naturally give more weight to the 13 meta data variables. 
+
+Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. % TODO: revisit this as a group 
+
+ There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefore they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the metadata for each song, than the model is going to naturally give more weight to the 13 metadata variables. 
+
 % TODO: sample graphs 
 % TODO: output metrics 
 % TODO: comparison between sequential, functional, meta, no meta
@@ -146,7 +180,7 @@ Our first major attempt to improve performance was to train the multiple input m
 \textbf{Something about successful vs unsuccessful models}
 
 
-While we were unsuccessful in our attempts to use the Meta data of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. One potential modification to the multi-input model is to train the recurrent layers as a separate model for a preliminary input. Then proceed to train a model which uses that output alongside the meta data to refine the predicted value. This avoids the issue of not knowing how the recurrent layer is training in the larger model, but still may present the problem that more weight is being given to the meta data than the predicted value. As well a larger and less sparse data set could be used a most likely would improve performance.
+While we were unsuccessful in our attempts to use the metadata of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. One potential modification to the multi-input model is to train the recurrent layers as a separate model for a preliminary input. Then proceed to train a model which uses that output alongside the metadata to refine the predicted value. This avoids the issue of not knowing how the recurrent layer is training in the larger model, but still may present the problem that more weight is being given to the metadata than the predicted value. As well a larger and less sparse data set could be used a most likely would improve performance.
 While adding more data would improve the performance it could also lead to complications due to differing music tastes across different regions. By focusing on the Philippines data set  
 
 % TODO: which models were successful and how successful 
