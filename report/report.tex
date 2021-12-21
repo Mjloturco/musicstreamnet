@@ -23,18 +23,15 @@
 
 \section{Introduction}
 
-Online music streaming services produce a weath of data about song popularity and trends in music over time. Access to this data gives us the opportunity to try to predict popularity and growth of songs. 
+Online music streaming services produce a weath of data about song popularity and trends in music over time. Access to this data gives us the opportunity to try to predict popularity and growth of songs. Predicting the stream count trends of a song can be advantageous for artists, producers, and streaming services. Artists may find this information useful for understanding which of their songs are gaining the most popularity, and streaming services may be able to better allocate resources to serve that song to end-users.
 
-Existing work \cite{araujo_predicting_2019, martin-gutierrez_multimodal_2020} has used metadata and audio features to assign a generalized performance prediction, such as ``low", ``medium" and ``high" popularity or ``hit song" and ``not hit song". The Spotify API \cite{noauthor_spotify_nodate} provides audio features (e.g. danciness and energy), lyrical features (e.g. valence and mood), and metadata for the track, including artist and album information.
-
- % HitMusicNet uses a compressed and encoded set of these features as an input to a Convolutional Neural Network and outputs a predicted popularity from among three classes. 
+Existing work \cite{araujo_predicting_2019, martin-gutierrez_multimodal_2020} has used metadata and audio features to assign a generalized performance prediction, such as ``low", ``medium" and ``high" popularity or ``hit song" and ``not hit song". The Spotify API \cite{noauthor_spotify_nodate} provides audio features (e.g. danciness and energy), lyrical features (e.g. valence and mood), and metadata for the track, including artist and album information. We are interested in forecasting the stream counts into future timesteps. Most of the existing literature focuses on computing a popularity score using metadata information, and we are interested in predicting stream count values over time. 
 
 Since the popularity of a track changes over time, we hypothesize that estimating ``popularity" without considering the time dimension will produce poorer model performance than predicting popularity while considering time. 
 
-We propose an architecture that considers both the encoded metadata from each track and the time series data of stream counts of those songs over time. Then we propose using a Recurrent Neural Network to take in time-labeled vectors including the encoded data and stream count and output a regression for stream counts for the next timestep. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
+First, we use basic LSTM and GRU models that use time series to predict stream counts in future time steps. Then, we propose a joint architecture that considers both the encoded metadata from each track and the time series data of stream counts of those songs over time. We hypothesize that by considering stream counts over time, predictions for popularity will be more accurate. 
 
-The thought behind such a process is that while a normal Recurrent network will predict the stream count with relatively good accuracy, combining that data with the encoded metadata will enable a feed forward network to use this information to refine the results of the previous network.
-
+We will evaluate our models using the standard metrics for regression problems: root mean squared error and mean absolute error. We will compare the results of our multiple-input model to the results of our own single-input LSTM and GRU models that mimic existing stream count prediction models in the literature.
 
 % This section should movitate your project and introduce your project at a high level. As we have mentioned in the class, your project should contains some exploration. The exploration can be one or more of these aspects:  
 % 
@@ -64,16 +61,18 @@ The thought behind such a process is that while a normal Recurrent network will 
 
 \section{Related Work}
 
-Martin-Gutierrez et. al \cite{martin-gutierrez_multimodal_2020} introduce the SpotGenTrack Popularity Dataset (SPD) and a deep learning architecture called HitMusicNet. SpotGenTrack combines metadata and audio data from Spotify and corresponding lyrical information from Genius and then extracts features from those sources. The extracted features are then compressed and encoded through a network MusicAENet. Finally a CNN (MusicPopNet) consumes the encoded and compressed feature vector to produce a classification of popularity. Similar previous models are noted to be binary classification, ``hit" vs ``not hit" whereas HitMusicNet is a ternary classifier separating ``low", ``medium" and ``high" classes. The overall architecture is shown in \ref{architecture}.
-    
-\begin{figure}
-    \centering 
-    \includegraphics[width=5in]{figs/architecture.png}
-    \caption{Model architecture presented by Martin-Gutierrez et al \cite{martin-gutierrez_multimodal_2020}. We intend to replace the fully-connected CNN with an RNN.}
-    \label{architecture}
-\end{figure}
+Martin-Gutierrez et. al \cite{martin-gutierrez_multimodal_2020} introduce the SpotGenTrack Popularity Dataset (SPD) and a deep learning architecture called HitMusicNet. SpotGenTrack combines metadata and audio data from Spotify and corresponding lyrical information from Genius and then extracts features from those sources. The extracted features are then compressed and encoded through a network MusicAENet. Finally a CNN (MusicPopNet) consumes the encoded and compressed feature vector to produce a classification of popularity. Similar previous models are noted to be binary classification, ``hit" vs ``not hit" whereas HitMusicNet is a ternary classifier separating ``low", ``medium" and ``high" classes.
 
-Li et al \cite{li_lstm-rpa_2021} present LSTM Rolling Prediction Algorithm (LSTM-RPA), a popularity prediction algorithm based on a Recurrent Neural Network. LSTM-RPA breaks the long-term prediction into several short-term trend predictions. This work is an important example of using an RNN architecture to predict song popularity. 
+% 
+% \begin{figure}
+%     \centering 
+%     \includegraphics[width=5in]{figs/architecture.png}
+%     \caption{Model architecture presented by Martin-Gutierrez et al \cite{martin-gutierrez_multimodal_2020}. We intend to replace the fully-connected CNN with an RNN.}
+%     \label{architecture}
+% \end{figure}
+
+
+Li et al \cite{li_lstm-rpa_2021} present LSTM Rolling Prediction Algorithm (LSTM-RPA), a popularity prediction algorithm based on a Recurrent Neural Network. LSTM-RPA breaks the long-term prediction into several short-term trend predictions. This work is an important example of using an RNN architecture to predict song popularity. Wang et al \cite{wang_music_2019} also present an LSTM model for forecasting popularity.
     
 Araujo et al \cite{araujo_predicting_2019} present a popularity prediction method using Support Vector Machines; this method predicts whether a song will appear on the Spotify Top 50 Global charts. This work has similar goals to our project and will serve as an important reference for evaluating our model’s accuracy.
 
@@ -102,47 +101,42 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 \subsection{Dataset}
 Our primary dataset is a modified version of the daily top 200 songs by stream count in the Philippines, from January 1st 2017 to May 20th 2021 \cite{peralta_spotify_nodate}. We reshaped this dataset to be of the form $\mathbb{R}^{d \times s}$, where $d$ is the number of dates in the dataset and $s$ is the number of songs.
 
-One issue with this dataset is that it only represents the top 200 songs for a given day; as a result, songs occasionally drop off the charts for a few days and then return, leaving gaps in our time series. To solve this, we interpolated values for very small gaps (one or two missing values) and filtered out songs with longer sequences of zeros. 
+One issue with this dataset is that it only represents the top 200 songs for a given day; as a result, songs occasionally drop off the charts for a few days and then return, leaving gaps in our time series. To solve this, we interpolated values for gaps of size exactly one (representing one day of off-chart stream counts) and filtered out songs containing zero values greater than a strict threshold. Due to the sparsity of our data, we experimented with different thresholds for including a song resulting, in a variety of different values for $s$.
 
-The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time.
+% The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time.
 
- As well to split out data into X values and Y, we took sub-sequences of various sizes, which we referred to as "lookback" with the next time step being the corresponding Y. After trimming our data set in such a manner the shape is 
-\[X = [\text{Batch Size, Lookback, Stream Count By Song}]\]
-\[Y = [\text{Batch Size, 1, Stream Count By Song}]\]
-Due to the sparsity of our data we experimented with different thresholds on whether or not to include a song resulting in a variety of different song sizes. % can we revisit this part as a group??? 
+To formulate our training data, we took sub-sequences of the overall date sequence for each song, with subsequences each of size \texttt{lookback} in our training dataset and the next timestep (of length one) set as the target value.
 
-In order to test our hypothesis, one of our architectures has multiple inputs. The second data was formed by obtaining a variety of metadata for each song in the original data set from the Spotify API. This metadata includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the songs 13 metadata features were extracted producing a tensor of shape [Song Count,13] % TODO: variables here 
+ After trimming our data set in such a manner the shape is 
+\[X = [\text{Batch Size, Lookback, $s$}]\]
+\[Y = [\text{Batch Size, 1, $s$}]\]
+where $X$ is our training data and $Y$ is our target data.
+
+In order to test our hypothesis, one of our architectures has multiple inputs. The second data was formed by obtaining a variety of metadata for each song in the original dataset from the Spotify API. This metadata includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the songs, we extracted 13 metadata features and produced a tensor of shape [$s$, 13].
 
 \subsection{Model Architecture}
 
-%% TODO: I think a lot of this has changed recently, definitely need to revisit as a group
-The learning problem is a straightforward regression problem. Given the daily stream counts of songs of the course of a certain amount of days, can we accurately predict the stream count of the next day? Given the time-oriented nature of the problem ,the main aspect of our models consist of recurrent layers. Mostly we experimented with the use of LSTMs as our main layer, but GRUs were also used to a degree of success. We explored both basic models, which consisted of entirely just recurrent layers, and multiple input models which included the metadata. We combined these models such that the output of the recurrent layers were being concatenated to the metadata and then feed through a basic feed forward network. 
+The learning problem is a straightforward regression problem. Given the daily stream counts of songs over a period of time, we are looking to accurately predict the stream count of the next day. Given the time-oriented nature of the problem, our models consist of recurrent layers. We built basic models using both LSTMs and GRUs to produce baseline accuracy metrics to be used to evaluate our multiple-input models. 
 
-% TODO: I think we can put a much more positive spin on this!!!!!!
-This architecture turned out to be fruitless, which will be touched on more later, and as such we experienced more success with the basic recurrent models.
-% TODO: Better-drawn version of architecture! 
-
-
-% TODO: loss 
 \begin{figure}
-    \centering 
-    \includegraphics[width=3in]{figs/loss.png}
-    \caption{Training and Testing loss (MSE)}
+    \centering{}
+    % \includegraphics{}
+    \caption{TODO: LSTM and GRU summaries}
+\end{figure}
+
+We propose an architecture for a multi-input model that combines stream-count data with the extracted metadata. We first run the stream count information through a recurrent neural network. Then we concatenate the output from this model with the $m$ metadata features to create a feature vector of length $m + 1$. Then we feed this feature vector through a feed-forward neural network to output an improved stream count prediction.
+
+\begin{figure}
+    \centering{}
+    % \includegraphics{}
+    \caption{TODO: better-drawn version of architecture}
 \end{figure}
 
 \subsection{Model Evaluation}
-We used Mean Squared Error, Root Squared Error, and Mean Absolute Error as our evaluation metrics. 
+We used Mean Squared Error, Root Mean Squared Error, and Mean Absolute Error as our evaluation metrics. 
 
-In order to visualize the success of our model, we plotted the predictions alongside the original amount of stream counts as shown below.
+Additionally, we visualize the predictions of our model by plotting the predictions alongside the original stream counts.
 
-% TODO: plots here 
-\begin{figure}
-    \centering
-    \includegraphics[width=3in ]{figs/stream_count_PLACEHOLDER}
-    \caption{Predicted stream counts and validation data }
-\end{figure}
-
-% TODO: output metrics and PLAN for model eval 
 
 % 
 % This section should be a detailed introduction of your project. This section should only contain your own work. For example, if you have modified a GRU architecture, this section should only have the modification of GRU. The original GRU structure should be put in the ``Background'' section.  
@@ -160,14 +154,47 @@ In order to visualize the success of our model, we plotted the predictions along
 % 
 \section{Experiments}
 
+\subsection{GRU and LSTM}
+% TODO: add experimentation with basic LSTM and GRU 
+
+
+
+\begin{tabular}{| c  c  c |}
+    \hline
+     & LSTM  & GRU \\ 
+     \hline 
+     RMSE & & \\ 
+     MAE & & \\  
+     \hline
+\end{tabular}
+
+\subsection{Multiple-Input Models}
+% TODO: results for joint model 
+
+
 Our first major attempt to improve performance was to train the multiple input model, which was previously described. This did not yield satisfactory results and was not properly training. % TODO: revisit this as a group 
 
  There are two intuition as to why the model did not work. The first being that since the recurrent layers are deeper in the model then we have no control over how they train. Therefore they may not be training to predict stream count and rather some other value. The other major issue is that since the RNN is only producing one value which is being concatenated onto the metadata for each song, than the model is going to naturally give more weight to the 13 metadata variables. 
+% 
+% TODO: loss 
+\begin{figure}[h]
+    \centering 
+    \includegraphics[width=3in]{figs/loss.png}
+    \caption{Training and Testing loss (MSE)}
+\end{figure}
 
 % TODO: sample graphs 
 % TODO: output metrics 
 % TODO: comparison between sequential, functional, meta, no meta
 % TODO: other model tweaks 
+
+
+% TODO: plots here 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=3in ]{figs/stream_count_PLACEHOLDER}
+    \caption{Predicted stream counts and validation data }
+\end{figure}
 
 % 
 % In this section, you should report your experiments, which that are either related to your hypotheses or the evaluation measures of your models. Do NOT manipulate experiment results, and its OK that the experiment results do not support your hypotheses or expectations. For example, if your project is a modification of the GRU and argues that the motivation can improve its performance. However, the experiment results do not show so. In this section, you should report your observations in experiments. Then you should analyze the results in either of the following ways:
