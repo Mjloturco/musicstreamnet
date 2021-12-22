@@ -16,7 +16,7 @@
 
 
 
-\title{CS137 Project: Music Popularity Prediction}
+\title{CS 137 Project: Music Stream Count Prediction}
 \author{Matthew Cook, Michael Loturco, and Abigail Stone}
 \date{}
 
@@ -103,8 +103,6 @@ In their 2018 paper, Choi et al \cite{choi_comparison_2018} compare audio pre-pr
 \subsection{Dataset}
 Our primary dataset is a modified version of the daily top 200 songs by stream count in the Philippines, from January 1st 2017 to May 20th 2021 \cite{peralta_spotify_nodate}. We reshaped this dataset to be of the form $\mathbb{R}^{d \times s}$, where $d$ is the number of dates in the dataset and $s$ is the number of songs.
 
-For our multi-input model, we augmented this dataset with additional features using the Spotify API. For each track in the existing dataset, we added album and artist information, as well as audio features from the Spotify API such as dancability, acousticness, energy, loudness, etc. We included thirteen additional features in total.
-
 One issue with this dataset is that it only represents the top 200 songs for a given day; as a result, songs occasionally drop off the charts for a few days and then return, leaving gaps in our time series. To solve this, we interpolated values for gaps of size exactly one (representing one day of off-chart stream counts) and filtered out songs containing zero values greater than a strict threshold. Due to the sparsity of our data, we experimented with different thresholds for including a song resulting, in a variety of different values for $s$.
 
 % The format of the data at this point is tensor of the shape [Timesteps, Stream Count By Song]. The data was still incredibly sparse and in order to further avoid this problem and to form a training and testing set we scanned out data sets for songs which achieved a certain threshold entries over the course of the time.
@@ -116,17 +114,11 @@ To formulate our training data, we took sub-sequences of the overall date sequen
 \[Y = [\text{Batch Size, 1, $s$}]\]
 where $X$ is our training data and $Y$ is our target data.
 
-In order to test our hypothesis, one of our architectures has multiple inputs. The second data was formed by obtaining a variety of metadata for each song in the original dataset from the Spotify API. This metadata includes features such as dancibility or acousticness in the form of a real value from 0 to 1. For each of the songs, we extracted 13 metadata features and produced a tensor of shape [$s$, 13].
+In order to test our hypothesis, one of our architectures has multiple inputs. We augmented the existing dataset with additional features using the Spotify API. For each track in the existing dataset, we added album and artist information, as well as audio features from the Spotify API such as dancability, acousticness, energy, and loudness, among others. These audio features are all real values between 0 and 1. For each of the songs, we extracted a total of 13 metadata features and produced a tensor of shape [$s$, 13].
 
 \subsection{Model Architecture}
 
 The learning problem is a straightforward regression problem. Given the daily stream counts of songs over a period of time, we are looking to accurately predict the stream count of the next day. Given the time-oriented nature of the problem, our models consist of recurrent layers. We built basic models using both LSTMs and GRUs to produce baseline accuracy metrics to be used to evaluate our multiple-input models. 
-
-\begin{figure}
-    \centering{}
-    % \includegraphics{}
-    \caption{TODO: LSTM and GRU summaries}
-\end{figure}
 
 We propose an architecture for a multi-input model that combines stream-count data with the extracted metadata. We first run the stream count information through a recurrent neural network. Then we concatenate the output from this model with the $m$ metadata features to create a feature vector of length $m + 1$. Then we feed this feature vector through a feed-forward neural network to output an improved stream count prediction.
 
@@ -140,6 +132,8 @@ We propose an architecture for a multi-input model that combines stream-count da
 We used Mean Squared Error, Root Mean Squared Error, and Mean Absolute Error as our evaluation metrics. 
 
 Additionally, we visualize the predictions of our model by plotting the predictions alongside the original stream counts.
+
+We set up two baseline models to evaluate the performance of our multi-input model: a basic LSTM implenetation and a basic GRU model to predict stream counts based solely on time series.
 
 
 % 
@@ -159,7 +153,6 @@ Additionally, we visualize the predictions of our model by plotting the predicti
 \section{Experiments}
 
 \subsection{GRU and LSTM}
-% TODO: add experimentation with basic LSTM and GRU 
 
 We performed a parameter search over two key dimensions. One parameter we varied was look back, the length of the time sequence provided which. Figure \ref{lookbackfig} (a) shows how MSE varies as look back changes in a GRU model. Figure \ref{lookbackfig} (b) shows the same variables searched over an LSTM model.
 
@@ -179,16 +172,16 @@ We also note that for the LSTM model, that predictions of models trained on sequ
 
 \begin{figure}[h]
     \centering
-    \begin{tabular}{| c  c  c |}
+    \begin{tabular}{| c  c  c  c|}
         \hline
-         & LSTM  & GRU \\ 
+         & LSTM  & GRU  & Multiple-Input\\ 
          \hline 
-         RMSE & & \\ 
-         MAE & & \\  
+         RMSE & 3,460 & 3,959  & 7,742 \\ 
+         MAE & 2,369 & 2,777 &  7,159 \\  
          \hline
     \end{tabular}
-    \caption{Results}
-    \label{singleinputresults}
+    \caption{Root Mean Squared Error and Mean Absolute Error for our models}
+    \label{results}
 \end{figure}
 
 \begin{figure}[h]
@@ -209,10 +202,9 @@ We also note that for the LSTM model, that predictions of models trained on sequ
 % TODO: results for joint model 
 
 % TODO: put in shapes here 
-Our multiple-input model is a Keras functional model that takes the stream count data (SHAPE) as input to an LSTM, concatenates the result of the recurrent network to a vector of 13 metadata features, and feeds this result of shape (SHAPE) through a feed-forward network. 
+Our multiple-input model is a Keras functional model that takes the stream count data as input to an LSTM, concatenates the result of the recurrent network to a vector of 13 metadata features, and feeds this result through a feed-forward network. 
 
-The results of this model demonstrate that the addition of metadata features did not improve the stream-count prediction. 
-
+The results of this model (see Figure \ref{results}) demonstrate that the addition of metadata features did not improve the stream-count prediction. 
 
 \begin{figure}[h]
     \centering 
@@ -241,11 +233,18 @@ The results of this model demonstrate that the addition of metadata features did
 % \end{itemize}
 % 
 \section{Conclusion}
-\textbf{Something about successful vs unsuccessful models}
 
+Through these experiments, we found that our baseline models were able to predict stream counts for the next time steps. Given the parameters that we identified through a grid search, we found that our LSTM model out-performed our GRU model. 
 
-While we were unsuccessful in our attempts to use the metadata of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. One potential modification to the multi-input model is to train the recurrent layers as a separate model for a preliminary input. Then proceed to train a model which uses that output alongside the metadata to refine the predicted value. This avoids the issue of not knowing how the recurrent layer is training in the larger model, but still may present the problem that more weight is being given to the metadata than the predicted value. As well a larger and less sparse data set could be used a most likely would improve performance.
-While adding more data would improve the performance it could also lead to complications due to differing music tastes across different regions. By focusing on the Philippines data set  
+When compared to our baseline models, our multi-input model did not have better predictive performance. This contradicts our initial hypothesis that the inclusion of metadata with the time-series stream count data would improve the predictive performance. Instead, we found that our multi-input model predicted a constant value over all time steps. We hypothesize that this is due to a feature imbalance between our time-series data and metadata when combined into a feature vector. Since the metadata stays constant across all timesteps, the model prediction was less able to distinguish variations over time.
+
+Future work could investigate rectifying this imbalance between time and metadata features. Additionally, other models could consider training time-series and metadata networks separately before combining features to feed into the final regression model. Additional experiments may also benefit from training on less sparse data. Despite careful data selection for our models, we were limited by the format of a Top 200 charts dataset, which inevitably had missing data points for many songs.
+
+Additionally, training on songs that are of lower popularity than the top 200 songs might be able to better predict stream count across all levels of popularity; this is likely to be more beneficial for artists, producers, and streaming services.
+
+% 
+% While we were unsuccessful in our attempts to use the metadata of the song to improve performance that may mostly be due to implementation issues. As such it could certainly benefit from further attempts. One potential modification to the multi-input model is to train the recurrent layers as a separate model for a preliminary input. Then proceed to train a model which uses that output alongside the metadata to refine the predicted value. This avoids the issue of not knowing how the recurrent layer is training in the larger model, but still may present the problem that more weight is being given to the metadata than the predicted value. As well a larger and less sparse data set could be used a most likely would improve performance.
+% While adding more data would improve the performance it could also lead to complications due to differing music tastes across different regions. By focusing on the Philippines data set  
 
 % TODO: which models were successful and how successful 
 % TODO: reiterate the WHY 
@@ -254,16 +253,19 @@ While adding more data would improve the performance it could also lead to compl
 % Draw conclusions from this project. Summarize the new findings you want your reader to learn.  
 % 
 \section{Share of work}
+
+Overall, we believe that work was divided equitably.
 % 
 % If the team has more than person, then you should report who has done which part of work. Particularly, you should mention these work items. If multiple people participated in one item, then you can list the percentage of contribution of each person. 
 % 
-% \begin{itemize}
-% \item writing of the proposal 
-% \item coding
+\begin{itemize}
+\item writing of the proposal  (all)
+\item dataset creation and augmentation (Abigail 80\%, Michael 20\%)
+\item coding (Abigail 40\%, Michael 40\%, Matthew 20\%)
 % \item running experiments and collecting data 
-% \item discussions (of project ideas and experiment results) 
-% \item writing of the final report 
-% \end{itemize}
+\item discussions (very evenly split) 
+\item writing of the final report (Matthew 40\%, Abigail 40\%, Michael 20\%)
+\end{itemize}
 
 \bibliographystyle{plain}
 \bibliography{sample}
